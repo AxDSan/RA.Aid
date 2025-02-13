@@ -1,0 +1,2 @@
+keyboard>=0.13.5
+pywinpty>=3.0.0; platform_system == "Windows"
