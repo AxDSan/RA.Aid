@@ -17,10 +17,16 @@ import sys
 import io
 import subprocess
 import select
-import termios
-import tty
-import time
+import keyboard
+import os
+import sys
+import select
 import signal
+import errno
+import time
+import shutil
+import io
+import subprocess
 from typing import List, Tuple
 
 import pyte
@@ -128,15 +134,13 @@ def run_interactive_command(cmd: List[str], expected_runtime_seconds: int = 30) 
 
     # Interactive mode: forward input if running in a TTY.
     if stdin_fd is not None and sys.stdin.isatty():
-        old_settings = termios.tcgetattr(stdin_fd)
-        tty.setraw(stdin_fd)
         try:
             while True:
                 if check_timeout():
                     was_terminated = True
                     break
-                # Use a finite timeout to avoid indefinite blocking.
-                rlist, _, _ = select.select([master_fd, stdin_fd], [], [], 1.0)
+                    
+                rlist, _, _ = select.select([master_fd], [], [], 1.0)
                 if master_fd in rlist:
                     try:
                         data = os.read(master_fd, 1024)
@@ -151,17 +155,17 @@ def run_interactive_command(cmd: List[str], expected_runtime_seconds: int = 30) 
                     decoded = data.decode("utf-8", errors="ignore")
                     stream.feed(decoded)
                     os.write(1, data)
-                if stdin_fd in rlist:
-                    try:
-                        input_data = os.read(stdin_fd, 1024)
-                    except OSError:
-                        input_data = b""
-                    if input_data:
-                        os.write(master_fd, input_data)
+
+                event = keyboard.read_event()
+                if event.event_type == keyboard.KEY_DOWN:
+                    if event.name == 'ctrl+c':
+                        proc.send_signal(signal.SIGINT)
+                        break
+                    else:
+                        os.write(master_fd, event.name.encode())
+
         except KeyboardInterrupt:
             proc.terminate()
-        finally:
-            termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_settings)
     else:
         # Non-interactive mode.
         try:
