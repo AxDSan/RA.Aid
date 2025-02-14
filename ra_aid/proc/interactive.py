@@ -17,7 +17,7 @@ from typing import List, Tuple
 import keyboard
 
 if os.name == 'nt':  # Windows
-    from pywinpty import PTY as WinPTY
+    from winpty import PTY as WinPTY
     pty = None
 else:  # Unix-like
     import pty
